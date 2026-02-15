@@ -44,6 +44,7 @@ interface DownloadOption {
   quality: string
   format: string
   size: string
+  url: string
 }
 
 interface DownloadResult {
@@ -103,31 +104,55 @@ export default function Home() {
   }, [url, isLoading])
 
   const handleDownload = useCallback((index: number) => {
+    if (!result?.options?.[index]) return
+
     setDownloadingIndex(index)
     setDownloadProgress(0)
     setDownloadComplete(null)
 
-    // Simulate download progress
+    const option = result.options[index]
+
+    // Simulate download progress then trigger actual download
     const interval = setInterval(() => {
       setDownloadProgress(prev => {
         if (prev >= 100) {
           clearInterval(interval)
           setDownloadingIndex(null)
           setDownloadComplete(index)
+
+          // Use the proxy route to ensure cross-origin downloads work correctly
+          const filename = `${result.title || 'video'}.${option.format}`
+          const proxyUrl = `/api/download/file?url=${encodeURIComponent(option.url)}&filename=${encodeURIComponent(filename)}`
+
+          const link = document.createElement('a')
+          link.href = proxyUrl
+          link.setAttribute('download', filename)
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+
           return 100
         }
-        return prev + Math.random() * 15
+        return prev + Math.random() * 25
       })
-    }, 200)
-  }, [])
+    }, 150)
+  }, [result])
 
   const getPlatformIcon = (platformName: string) => {
-    const platform = platforms.find(p => p.name === platformName)
+    const normalized = platformName.toLowerCase()
+    const platform = platforms.find(p =>
+      p.name.toLowerCase() === normalized ||
+      normalized.includes(p.name.toLowerCase())
+    )
     return platform?.icon || Video
   }
 
   const getPlatformColor = (platformName: string) => {
-    const platform = platforms.find(p => p.name === platformName)
+    const normalized = platformName.toLowerCase()
+    const platform = platforms.find(p =>
+      p.name.toLowerCase() === normalized ||
+      normalized.includes(p.name.toLowerCase())
+    )
     return platform?.color || 'text-gray-500'
   }
 
